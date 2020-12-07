@@ -51,6 +51,7 @@
 
             var pingType = (PingType) cache.Index;
             cacheManager.Add(pingType, cache.Index, cache.Name);
+            EnumPatcher.ClearCache(typeof(PingType));
             ModSprite.Add(SpriteManager.Group.Pings, pingType.ToString(), sprite);
             
             if (PingManager.sCachedPingTypeStrings.valueToString.ContainsKey(pingType) == false)

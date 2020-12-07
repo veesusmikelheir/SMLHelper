@@ -9,11 +9,11 @@
     using HarmonyLib;
     using SMLHelper.V2.Utility;
 
-    internal static class EnumInfoPatch
+    internal static class EnumPatcher
     {
         public static void Patch(Harmony harmony)
         {
-            harmony.Patch(TargetMethod(), null, null, new HarmonyMethod(AccessTools.Method(typeof(EnumInfoPatch), nameof(Transpiler))));
+            harmony.Patch(TargetMethod(), null, null, new HarmonyMethod(AccessTools.Method(typeof(EnumPatcher), nameof(Transpiler))));
         }
         static MethodBase TargetMethod()
         {
@@ -91,7 +91,7 @@
                         yield return new CodeInstruction(OpCodes.Ldarg_0) { labels = labels };
                         yield return new CodeInstruction(OpCodes.Ldloca, 1);
                         yield return new CodeInstruction(OpCodes.Ldloca, 2);
-                        yield return new CodeInstruction(OpCodes.Call, AccessTools.Method(typeof(EnumInfoPatch), "FixEnum"));
+                        yield return new CodeInstruction(OpCodes.Call, AccessTools.Method(typeof(EnumPatcher), "FixEnum"));
                         yield return v;
                     }
                     else

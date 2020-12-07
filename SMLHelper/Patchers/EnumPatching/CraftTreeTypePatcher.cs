@@ -21,7 +21,6 @@
         internal static ModCraftTreeRoot CreateCustomCraftTreeAndType(string name, out CraftTree.Type craftTreeType)
         {
             EnumTypeCache cache = cacheManager.RequestCacheForTypeName(name);
-
             if (cache == null)
             {
                 cache = new EnumTypeCache()
@@ -37,6 +36,7 @@
             craftTreeType = (CraftTree.Type)cache.Index;
 
             cacheManager.Add(craftTreeType, cache.Index, cache.Name);
+            EnumPatcher.ClearCache(typeof(CraftTree.Type));
 
             Logger.Log($"Successfully added CraftTree Type: '{name}' to Index: '{cache.Index}'", LogLevel.Debug);
 

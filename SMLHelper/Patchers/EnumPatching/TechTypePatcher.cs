@@ -42,6 +42,7 @@
 
             var techType = (TechType)cache.Index;
             cacheManager.Add(techType, cache.Index, cache.Name);
+            EnumPatcher.ClearCache(typeof(TechType));
 
             // Direct access to private fields made possible by https://github.com/CabbageCrow/AssemblyPublicizer/
             // See README.md for details.

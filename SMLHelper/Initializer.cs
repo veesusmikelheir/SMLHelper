@@ -25,6 +25,7 @@
         public static void PrePatch()
         {
 
+            EnumPatcher.Patch(harmony);
 
             Logger.Initialize();
 #if SUBNAUTICA
@@ -39,12 +40,7 @@
             CraftTreeTypePatcher.cacheManager.LoadCache();
 
             PrefabDatabasePatcher.PrePatch(harmony);
-            EnumInfoPatch.Patch(harmony);
 
-            var t = TechTypePatcher.AddTechType("TESTTYPE");
-            EnumInfoPatch.ClearCache(typeof(TechType));
-            Logger.Debug(t.ToString());
-            Logger.Debug(Enum.GetName(typeof(TechType), t));
            
         }
 
@@ -60,7 +56,6 @@
             TechTypePatcher.Patch();
             CraftTreeTypePatcher.Patch();
             PingTypePatcher.Patch();
-            //EnumPatcher.Patch(harmony);
 
             CraftDataPatcher.Patch(harmony);
             CraftTreePatcher.Patch(harmony);
