@@ -2,112 +2,106 @@
 {
     using System;
     using System.Collections.Generic;
+    using System.Globalization;
+    using System.Linq;
+    using System.Reflection;
+    using System.Reflection.Emit;
     using HarmonyLib;
     using SMLHelper.V2.Utility;
 
-    internal class EnumPatcher
+    internal static class EnumInfoPatch
     {
-        internal static void Patch(Harmony harmony)
+        public static void Patch(Harmony harmony)
         {
-            PatchUtils.PatchClass(harmony);
+            harmony.Patch(TargetMethod(), null, null, new HarmonyMethod(AccessTools.Method(typeof(EnumInfoPatch), nameof(Transpiler))));
+        }
+        static MethodBase TargetMethod()
+        {
+            return AccessTools.Method(Type.GetType("System.Enum"), "GetCachedValuesAndNames");
+            
 
-            Logger.Log("EnumPatcher is done.", LogLevel.Debug);
         }
 
-        [PatchUtils.Postfix]
-        [HarmonyPatch(typeof(Enum), nameof(Enum.GetValues))]
-        private static void Postfix_GetValues(Type enumType, ref Array __result)
+        internal static void ClearCache(Type enumType)
         {
-            if (enumType == typeof(TechType))
-            {
-                __result = GetValues(TechTypePatcher.cacheManager, __result);
-            }
-            else if (enumType == typeof(CraftTree.Type))
-            {
-                __result = GetValues(CraftTreeTypePatcher.cacheManager, __result);
-            }
-            else if (enumType == typeof(PingType))
-            {
-                __result = GetValues(PingTypePatcher.cacheManager, __result);
-            }
+            AccessTools.Field(Type.GetType("System.RuntimeType"), "GenericCache").SetValue(enumType, null); 
         }
 
-        private static T[] GetValues<T>(EnumCacheManager<T> cacheManager, Array __result) where T : Enum
+        static void FixEnum(object type, ref ulong[] oldValues, ref string[] oldNames)
         {
-            var list = new List<T>();
-            foreach (T type in __result)
-            {
-                list.Add(type);
-            }
 
-            list.AddRange(cacheManager.ModdedKeys);
-            return list.ToArray();
+            
+            var enumType = type as Type;
+
+            if (!GetArrays(enumType, out string[] toBePatchedNames, out ulong[] toBePatchedValues)) return;
+            Array.Resize(ref oldNames, toBePatchedNames.Length + oldNames.Length);
+            Array.Resize(ref oldValues, toBePatchedValues.Length + oldValues.Length); 
+            Array.Copy(toBePatchedNames, 0, oldNames, oldNames.Length- toBePatchedNames.Length, toBePatchedNames.Length);
+            Array.Copy(toBePatchedValues, 0, oldValues, oldValues.Length- toBePatchedValues.Length, toBePatchedValues.Length);
+
+            Array.Sort<ulong, string>(oldValues, oldNames, Comparer<ulong>.Default);
+            
         }
 
-        [PatchUtils.Prefix]
-        [HarmonyPatch(typeof(Enum), nameof(Enum.IsDefined))]
-        private static bool Prefix_IsDefined(Type enumType, object value, ref bool __result)
+        static bool GetArrays(Type type, out string[] names, out ulong[] values)
         {
-            if (IsDefined(TechTypePatcher.cacheManager, enumType, value) ||
-                IsDefined(CraftTreeTypePatcher.cacheManager, enumType, value) ||
-                IsDefined(PingTypePatcher.cacheManager, enumType, value))
+            names = null;
+            values = null;
+            if (type == typeof(TechType))
             {
-                __result = true;
-                return false;
+                if (TechTypePatcher.cacheManager == null) return false;
+                names = TechTypePatcher.cacheManager.ModdedNames;
+                values = TechTypePatcher.cacheManager.ModdedValues;
+                return true;
+            }
+            else if (type == typeof(PingType))
+            {
+                if (PingTypePatcher.cacheManager == null) return false;
+
+                names = PingTypePatcher.cacheManager.ModdedNames;
+                values = PingTypePatcher.cacheManager.ModdedValues;
+                return true;
+            }
+            else if (type == typeof(CraftTree.Type))
+            {
+                if (CraftTreeTypePatcher.cacheManager == null) return false;
+
+                names = CraftTreeTypePatcher.cacheManager.ModdedNames;
+                values = CraftTreeTypePatcher.cacheManager.ModdedValues;
+                return true;
             }
 
-            return true;
+            return false;
         }
 
-        private static bool IsDefined<T>(EnumCacheManager<T> cacheManager, Type enumType, object value) where T : Enum
+        static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
         {
-            return enumType.Equals(typeof(T)) && cacheManager.ContainsKey((T)value);
-        }
-
-        [PatchUtils.Prefix]
-        [HarmonyPatch(typeof(Enum), nameof(Enum.Parse), new[] { typeof(Type), typeof(string), typeof(bool) })]
-        private static bool Prefix_Parse(Type enumType, string value, bool ignoreCase, ref object __result)
-        {
-            if (enumType == typeof(TechType) && TechTypePatcher.cacheManager.TryParse(value, out TechType techType))
+            using (var enumerator = instructions.GetEnumerator())
             {
-                __result = techType;
-                return false;
-            }
-            else if (enumType == typeof(CraftTree.Type) && CraftTreeTypePatcher.cacheManager.TryParse(value, out CraftTree.Type craftTreeType))
-            {
-                __result = craftTreeType;
-                return false;
-            }
-            else if (enumType == typeof(PingType) && PingTypePatcher.cacheManager.TryParse(value, out PingType pingType))
-            {
-                __result = pingType;
-                return false;
-            }
-
-            return true;
-        }
-
-        [PatchUtils.Prefix]
-        [HarmonyPatch(typeof(Enum), nameof(Enum.ToString), new Type[] { })]
-        private static bool Prefix_ToString(Enum __instance, ref string __result)
-        {
-            switch (__instance)
-            {
-                case TechType techType when TechTypePatcher.cacheManager.TryGetValue(techType, out string techTypeName):
-                    __result = techTypeName;
-                    return false;
-
-                case CraftTree.Type craftTreeType when CraftTreeTypePatcher.cacheManager.TryGetValue(craftTreeType, out var craftTreeName):
-                    __result = craftTreeName;
-                    return false;
-
-                case PingType pingType when PingTypePatcher.cacheManager.TryGetValue(pingType, out var pingTypeName):
-                    __result = pingTypeName;
-                    return false;
-
-                default:
-                    return true;
+                while (enumerator.MoveNext())
+                {
+                    var v = enumerator.Current;
+                    if (v.operand is MethodInfo me && me.Name == "Sort")
+                    {
+                        yield return v;
+                        enumerator.MoveNext();
+                        v = enumerator.Current;
+                        var labels = v.labels;
+                        v.labels = new List<Label>();
+                        yield return new CodeInstruction(OpCodes.Ldarg_0) { labels = labels };
+                        yield return new CodeInstruction(OpCodes.Ldloca, 1);
+                        yield return new CodeInstruction(OpCodes.Ldloca, 2);
+                        yield return new CodeInstruction(OpCodes.Call, AccessTools.Method(typeof(EnumInfoPatch), "FixEnum"));
+                        yield return v;
+                    }
+                    else
+                    {
+                        yield return v;
+                    }
+                }
             }
         }
     }
+
+    
 }

@@ -7,6 +7,7 @@
     using Patchers.EnumPatching;
     using QModManager.API.ModLoading;
     using QModManager.Utility;
+    using UnityEngine;
 
     /// <summary>
     /// WARNING: This class is for use only by QModManager.
@@ -23,6 +24,8 @@
         [Obsolete("This method is for use only by QModManager.", true)]
         public static void PrePatch()
         {
+
+
             Logger.Initialize();
 #if SUBNAUTICA
             Logger.Log($"Loading v{Assembly.GetExecutingAssembly().GetName().Version} for Subnautica", LogLevel.Info);
@@ -36,6 +39,13 @@
             CraftTreeTypePatcher.cacheManager.LoadCache();
 
             PrefabDatabasePatcher.PrePatch(harmony);
+            EnumInfoPatch.Patch(harmony);
+
+            var t = TechTypePatcher.AddTechType("TESTTYPE");
+            EnumInfoPatch.ClearCache(typeof(TechType));
+            Logger.Debug(t.ToString());
+            Logger.Debug(Enum.GetName(typeof(TechType), t));
+           
         }
 
         /// <summary>
@@ -50,7 +60,7 @@
             TechTypePatcher.Patch();
             CraftTreeTypePatcher.Patch();
             PingTypePatcher.Patch();
-            EnumPatcher.Patch(harmony);
+            //EnumPatcher.Patch(harmony);
 
             CraftDataPatcher.Patch(harmony);
             CraftTreePatcher.Patch(harmony);

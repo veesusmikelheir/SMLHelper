@@ -3,6 +3,7 @@
     using System;
     using System.Collections;
     using System.Collections.Generic;
+    using System.Globalization;
     using System.IO;
     using System.Reflection;
     using System.Text;
@@ -32,6 +33,8 @@
             private readonly SortedDictionary<string, T> MapStringEnum = new SortedDictionary<string, T>(StringComparer.InvariantCultureIgnoreCase);
             private readonly SortedDictionary<string, int> MapStringInt = new SortedDictionary<string, int>(StringComparer.InvariantCultureIgnoreCase);
 
+            internal string[] Keys = new string[0];
+            internal ulong[] Values = new ulong[0];
             public bool TryGetValue(T enumValue, out string name)
             {
                 return MapEnumString.TryGetValue(enumValue, out name);
@@ -58,6 +61,15 @@
                 MapEnumString.Add(enumValue, name);
                 MapStringEnum.Add(name, enumValue);
                 MapStringInt.Add(name, backingValue);
+                var temp = Keys;
+                Keys = new string[Keys.Length + 1];
+                Array.Copy(temp, Keys, temp.Length);
+                Keys[Keys.Length-1] = name;
+
+                var temp2 = Values;
+                Values = new ulong[Values.Length + 1];
+                Array.Copy(temp2, Values, temp2.Length);
+                Values[Values.Length-1] = Convert.ToUInt64(backingValue, CultureInfo.InvariantCulture);
 
                 if (backingValue > this.LargestIntValue)
                     this.LargestIntValue = backingValue;
@@ -123,6 +135,10 @@
         private readonly DoubleKeyDictionary entriesFromRequests = new DoubleKeyDictionary();
 
         public IEnumerable<T> ModdedKeys => entriesFromRequests.KnownsEnumKeys;
+
+        public string[] ModdedNames => entriesFromRequests.Keys;
+
+        public ulong[] ModdedValues => entriesFromRequests.Values;
 
         public int ModdedKeysCount => entriesFromRequests.KnownsEnumCount;
 
